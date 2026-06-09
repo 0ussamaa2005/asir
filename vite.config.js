@@ -7,4 +7,5 @@ export default defineConfig({
     react(),
     tailwindcss(), // <-- Make sure this is here
   ],
+  base: '/0ussamaa2005/ASIR_VISA/',
 })
