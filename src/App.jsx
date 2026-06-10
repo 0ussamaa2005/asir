@@ -129,7 +129,7 @@ function MainAppContent() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           
           <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setViewMode('landing')}>
-            <div className="bg-gradient-to-br from-red-500 to-rose-600 text-white font-black px-2.5 py-1 rounded-lg text-lg tracking-tighter">A</div>
+            <img src="/favicon.svg" alt="Asir Visa Logo" className="w-9 h-9 object-contain" />
             <span className={`text-xl font-bold tracking-tight hidden sm:inline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               Asir <span className="text-red-500">Visa</span>
             </span>
@@ -163,14 +163,14 @@ function MainAppContent() {
 
           {/* Verification Status Micro-badge & Central Floating Toolbar Control */}
           <div className="flex items-center gap-3 shrink-0">
-            {studentProfile.isLoggedIn && (
+            {studentProfile?.isLoggedIn && (
               <div className={`border px-3 py-1.5 rounded-xl text-[11px] font-mono flex items-center gap-2 backdrop-blur-md ${
                 isDarkMode ? 'bg-slate-950/40 border-slate-800/40 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
               }`}>
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                ID: {studentProfile.file_tracking_id} 
+                ID: {studentProfile?.file_tracking_id} 
                 <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>|</span> 
-                <span className={studentProfile.pre_evaluation_paid ? "text-emerald-500 font-bold" : "text-amber-500"}>
+                <span className={studentProfile?.pre_evaluation_paid ? "text-emerald-500 font-bold" : "text-amber-500"}>
                   {studentProfile.pre_evaluation_paid ? t.verified : t.pending}
                 </span>
               </div>

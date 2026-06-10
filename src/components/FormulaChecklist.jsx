@@ -10,6 +10,7 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
     has_valid_passport: studentProfile.has_valid_passport || false,
     has_bank_statement: studentProfile.has_bank_statement || false,
     has_legalized_docs: studentProfile.has_legalized_docs || false,
+    has_nawa_certification: studentProfile.has_nawa_certification || false,
   });
   const [rates, setRates] = useState({ acceptance: 0, visa: 0 });
   const [isSaving, setIsSaving] = useState(false);
@@ -27,6 +28,13 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
   }, [docs]);
 
   const handleToggle = (key) => setDocs(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleKeyDown = (e, key) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleToggle(key);
+    }
+  };
 
   const saveProfileMetrics = async () => {
     setIsSaving(true);
@@ -47,6 +55,8 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
       target: "Target Route",
       formula: "Interactive Profile Formula",
       formulaDesc: "Select the administrative elements you currently possess to check your profile metrics:",
+      costTitle: "Estimated Cost Range",
+      costDesc: "Typical annual tuition and living expenses for your chosen route:",
       scoreTitle: "Your Evaluation Score",
       acceptance: "University Acceptance Rate",
       visa: "Visa Approval Probability",
@@ -66,6 +76,8 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
       target: "وجهة المسار",
       formula: "صيغة الملف التفاعلية",
       formulaDesc: "حدد العناصر الإدارية التي تملكها حالياً للتحقق من مؤشرات ملفك:",
+      costTitle: "نطاق التكلفة المقدر",
+      costDesc: "الرسوم الدراسية السنوية المعمولة ونفقات المعيشة لوجهتك:",
       scoreTitle: "درجة التقييم الخاصة بك",
       acceptance: "نسبة قبول الجامعة",
       visa: "احتمالية الموافقة على التأشيرة",
@@ -84,6 +96,23 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
 
   const t = translations[lang] || translations.en;
 
+  const destinationCosts = {
+    Italy: {
+      tuition: lang === 'ar' ? 'من 500 إلى 3,000 يورو سنويًا' : '€500 - €3,000 / year',
+      living: lang === 'ar' ? 'من 6,000 إلى 10,000 يورو سنويًا' : '€6,000 - €10,000 / year',
+    },
+    Poland: {
+      tuition: lang === 'ar' ? 'من 2,000 إلى 4,000 يورو سنويًا' : '€2,000 - €4,000 / year',
+      living: lang === 'ar' ? 'من 5,000 إلى 8,000 يورو سنويًا' : '€5,000 - €8,000 / year',
+    },
+    'Other Europe': {
+      tuition: lang === 'ar' ? 'تختلف حسب الوجهة، من 2,500 إلى 7,000 يورو' : 'Varies by country, typically €2,500 - €7,000 / year',
+      living: lang === 'ar' ? 'من 7,000 إلى 12,000 يورو سنويًا' : '€7,000 - €12,000 / year',
+    },
+  };
+
+  const selectedCosts = destinationCosts[studentProfile.chosen_destination] || destinationCosts['Other Europe'];
+
   const checklistItems = [
     { id: 'has_diploma', label: lang === 'ar' ? 'الشهادة النهائية / شهادة التخرج' : 'Final Diploma / Graduation Certificate', sub: lang === 'ar' ? 'تثبت إكمال المرحلة الدراسية الأساسية' : 'Proves academic baseline completion' },
     { id: 'has_transcripts', label: lang === 'ar' ? 'الكشوف الرسمية متعددة الفصول' : 'Official Multi-Semester Transcripts', sub: lang === 'ar' ? 'مطلوبة لمطابقة المنهج الجامعي' : 'Required for university syllabus matching' },
@@ -92,6 +121,14 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
     { id: 'has_bank_statement', label: lang === 'ar' ? 'كشف حساب بنكي متوافق مع شنغن' : 'Schengen-Compliant Financial Bank Statement', sub: lang === 'ar' ? 'يُظهر موارد الاكتفاء الذاتي' : 'Demonstrates self-sufficiency resources' },
     { id: 'has_legalized_docs', label: lang === 'ar' ? 'ملفات موثقة ومترجمة' : 'Legalized & Translated Files', sub: lang === 'ar' ? 'ترجمات معتمدة جاهزة للسفارة' : 'Embassy-ready certified translations' },
   ];
+
+  if (studentProfile.chosen_destination === 'Poland') {
+    checklistItems.push({
+      id: 'has_nawa_certification',
+      label: lang === 'ar' ? 'شهادة NAWA متاحة' : 'NAWA Certification Documents',
+      sub: lang === 'ar' ? 'مطلوبة للمساعدة في الاعتراف الأكاديمي والمنح' : 'Needed for academic recognition and Polish funding streams',
+    });
+  }
 
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className={`max-w-4xl mx-auto px-4 pt-24 pb-16 min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0b1120]' : 'bg-slate-50'}`}>
@@ -104,21 +141,38 @@ export default function FormulaChecklist({ studentProfile, onNavigateToPayment, 
         <div className="md:col-span-2 space-y-4">
           <h3 className={`text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.formula}</h3>
           <p className={`text-xs -mt-2 mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t.formulaDesc}</p>
-          <div className={`border rounded-2xl p-5 space-y-3 transition-colors ${isDarkMode ? 'bg-slate-900/20 border-slate-800/60' : 'bg-white border-slate-200'}`}>
-            {checklistItems.map((item) => (
-              <div key={item.id} onClick={() => handleToggle(item.id)} className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group ${docs[item.id] ? 'bg-red-500/5 border-red-500/50' : isDarkMode ? 'bg-slate-950/40 border-slate-800/60 hover:border-slate-700/60' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
-                <div>
-                  <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.label}</p>
-                  <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{item.sub}</p>
-                </div>
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all ${docs[item.id] ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20' : isDarkMode ? 'border-slate-600' : 'border-slate-300'}`}>
-                  {docs[item.id] && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                </div>
+          <div className={`rounded-2xl p-5 space-y-3 transition-colors ${isDarkMode ? 'bg-slate-900/20 border-slate-800/60 border' : 'bg-white border-slate-200'}`}>
+            <div className={`rounded-2xl p-4 ${isDarkMode ? 'bg-slate-950/70 border border-slate-800' : 'bg-slate-50 border border-slate-200'}`}>
+              <div className={`text-xs uppercase tracking-widest font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t.costTitle}</div>
+              <p className={`text-[11px] mt-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t.costDesc}</p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className={`${isDarkMode ? 'text-white' : 'text-slate-900'}`}><span className="font-semibold">{lang === 'ar' ? 'الرسوم الدراسية:' : 'Tuition:'}</span> {selectedCosts.tuition}</div>
+                <div className={`${isDarkMode ? 'text-white' : 'text-slate-900'}`}><span className="font-semibold">{lang === 'ar' ? 'نفقات المعيشة:' : 'Living expenses:'}</span> {selectedCosts.living}</div>
               </div>
-            ))}
+            </div>
+            <div className={`border rounded-2xl p-5 space-y-3 transition-colors ${isDarkMode ? 'bg-slate-900/20 border-slate-800/60' : 'bg-white border-slate-200'}`}>
+              {checklistItems.map((item) => (
+                <div 
+                  key={item.id} 
+                  onClick={() => handleToggle(item.id)} 
+                  onKeyDown={(e) => handleKeyDown(e, item.id)}
+                  tabIndex={0}
+                  role="checkbox"
+                  aria-checked={docs[item.id]}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-red-500/40 ${docs[item.id] ? 'bg-red-500/5 border-red-500/50' : isDarkMode ? 'bg-slate-950/40 border-slate-800/60 hover:border-slate-700/60' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                >
+                  <div>
+                    <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.label}</p>
+                    <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{item.sub}</p>
+                  </div>
+                  <div className={`w-6 h-6 rounded-md flex items-center justify-center border transition-all ${docs[item.id] ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20' : isDarkMode ? 'border-slate-600' : 'border-slate-300'}`}>
+                    {docs[item.id] && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-
         <div className="space-y-6">
           <h3 className={`text-lg font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.scoreTitle}</h3>
           <div className={`border rounded-2xl p-6 text-center space-y-6 shadow-xl transition-colors ${isDarkMode ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>

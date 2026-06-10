@@ -64,15 +64,16 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
 
   const t = translations[lang] || translations.en;
 
-  useEffect(() => { fetchActiveOfficeQueue(); }, []);
-
-  const fetchActiveOfficeQueue = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('student_profiles').select('*').order('created_at', { ascending: false });
-    if (!error && data) setStudents(data);
-    setLoading(false);
-  };
+  useEffect(() => {
+    const fetchActiveOfficeQueue = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('student_profiles').select('*').order('created_at', { ascending: false });
+      if (!error && data) setStudents(data);
+      setLoading(false);
+    };
+    fetchActiveOfficeQueue();
+  }, []);
 
   const handleTogglePaymentStatus = async (id, currentStatus) => {
     const { error } = await supabase
@@ -82,7 +83,8 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
     if (!error) {
       setToast({ message: t.toastUpdated });
       setTimeout(() => setToast(null), 3000);
-      fetchActiveOfficeQueue();
+      // Refresh local state to reflect update
+      setStudents(prev => prev.map(s => s.id === id ? { ...s, pre_evaluation_paid: !currentStatus } : s));
     }
   };
 
