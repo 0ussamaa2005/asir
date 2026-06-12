@@ -84,12 +84,40 @@ function MainAppContent() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('student_profiles')
-        .or(`file_tracking_id.eq.${trackId.trim().toUpperCase()},email.eq.${trackId.trim().toLowerCase()}`) // This was the previous change
-        .maybeSingle();
+      // Logic: Allow entering "email ID" or just one. 
+      // We will try to find a record that matches the input.
+      const parts = trackId.trim().split(/[\s,]+/);
+      let query = supabase.from('student_profiles').select('*');
 
-      if (error || !data) {
+      if (parts.length >= 2) {
+        // If two parts are provided, assume Email and ID
+        const emailPart = parts.find(p => p.includes('@'))?.toLowerCase();
+        const idPart = parts.find(p => !p.includes('@'))?.toUpperCase();
+        
+        if (emailPart && idPart) {
+          query = query.eq('email', emailPart).eq('file_tracking_id', idPart);
+        } else {
+          query = query.or(`file_tracking_id.eq."${parts[0].toUpperCase()}",email.eq."${parts[parts.length-1].toLowerCase()}"`);
+        }
+      } else {
+        // Fallback to searching either column for a single input
+        const searchVal = trackId.trim();
+        query = query.or(`file_tracking_id.eq."${searchVal.toUpperCase()}",email.eq."${searchVal.toLowerCase()}"`);
+      }
+
+      const { data, error } = await query.maybeSingle();
+
+      if (error) {
+        console.error("Supabase tracking error details:", error);
+        if (error.code === '42501') {
+          alert(lang === 'ar' ? "خطأ في الأذونات: يرجى تفعيل سياسة RLS للوصول العام." : "Permission Error: Please enable the RLS policy for public access in Supabase.");
+        } else {
+          alert(lang === 'ar' ? "خطأ في الاتصال بالنظام." : "System connection error.");
+        }
+        return;
+      }
+
+      if (!data) {
         alert(lang === 'ar' ? "لم يتم العثور على أي ملف طالب مسجل تحت رمز التتبع هذا." : "No active student file discovered under that tracking reference ID.");
         return;
       }
@@ -110,6 +138,7 @@ function MainAppContent() {
         setViewMode('waiting-approval');
       }
     } catch (err) {
+      console.error("Critical tracking failure:", err);
       alert(lang === 'ar' ? "خطأ في الاتصال بالنظام." : "System connection error.");
     } finally {
       setIsTrackLoading(false);
