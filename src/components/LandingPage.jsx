@@ -1,5 +1,6 @@
 // src/components/LandingPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabaseClient';
 
 // Add animation styles
 const animationStyles = `
@@ -32,20 +33,132 @@ const animationStyles = `
   }
 `;
 
-export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard, lang, isDarkMode }) {
+const specializedCountries = [
+  'Hungary', 'Germany', 'France', 'Spain', 'Belgium', 'Austria', 
+  'Netherlands', 'Sweden', 'Denmark', 'Finland', 'Portugal', 
+  'Czech Republic', 'Greece', 'Ireland', 'Switzerland', 'Norway', 
+  'Luxembourg', 'Slovakia', 'Slovenia', 'Croatia'
+];
+
+const getStatsData = (lang) => [
+  { value: 340, suffix: '+', label: lang === 'ar' ? 'طالب تم قبوله' : 'Students Placed', percentage: 100 },
+  { value: 98, suffix: '%', label: lang === 'ar' ? 'نسبة قبول التأشيرة' : 'Visa Approval Rate', percentage: 98 },
+  { value: 15, suffix: '+', label: lang === 'ar' ? 'جامعة شريكة' : 'Partner Universities', percentage: 95 },
+  { value: 10, suffix: '', label: lang === 'ar' ?  'سنوات خبرة' : 'Years of Experience', percentage: 95 },
+];
+
+const getTestimonials = () => [
+  {
+    name: 'Amira K.',
+    story: 'Got accepted to Sapienza in 6 weeks. The process was seamless!',
+    country: 'Italy',
+    icon: (
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M8 17l4-2 4 2" />
+          <path d="M9 7v5" />
+          <path d="M15 7v5" />
+        </svg>
+      </div>
+    ),
+  },
+  {
+    name: 'Hassan M.',
+    story: 'Secured NAWA certification for Poland. Best decision ever!',
+    country: 'Poland',
+    icon: (
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+        </svg>
+      </div>
+    ),
+  },
+  {
+    name: 'Zainab L.',
+    story: 'Visa approved with scholarship offer. Thank you Asir Visa!',
+    country: 'Germany',
+    icon: (
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 16.5l7-7 7 7" />
+          <path d="M12 3v10.5" />
+          <path d="M7.5 21h9" />
+        </svg>
+      </div>
+    ),
+  },
+];
+
+const getFeaturedUnis = () => ['🇮🇹 Sapienza', '🇵🇱 Warsaw', '🇮🇹 Politecnico', '🇵🇱 AGH', '🇩🇪 TU Berlin', '🇫🇷 Sorbonne', '🇪🇸 UNED', '🇳🇱 Amsterdam'];
+
+const getProcessSteps = (t) => [
+  {
+    step: '1',
+    title: t.step1,
+    desc: t.step1Desc,
+    icon: (
+      <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="7" y="4" width="10" height="16" rx="2" />
+          <path d="M9 4V2h6v2" />
+          <path d="M9 10h6" />
+        </svg>
+      </div>
+    ),
+  },
+  {
+    step: '2',
+    title: t.step2,
+    desc: t.step2Desc,
+    icon: (
+      <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+    ),
+  },
+  {
+    step: '3',
+    title: t.step3,
+    desc: t.step3Desc,
+    icon: (
+      <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 4.21a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </div>
+    ),
+  },
+  {
+    step: '4',
+    title: t.step4,
+    desc: t.step4Desc,
+    icon: (
+      <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
+        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7 15l5-5 5 5" />
+          <path d="M12 3v12" />
+        </svg>
+      </div>
+    ),
+  },
+];
+
+export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard, onTrack, lang, isDarkMode }) {
   const [showSelector, setShowSelector] = useState(false);
   const [countryFilter, setCountryFilter] = useState('');
+  const [heroTrackId, setHeroTrackId] = useState('');
   const [animatingIndices, setAnimatingIndices] = useState(new Set());
+  const [showForgotIdModal, setShowForgotIdModal] = useState(false);
+  const [forgotIdEmail, setForgotIdEmail] = useState('');
   const [expandedFaq, setExpandedFaq] = useState(null);
   const modalRef = useRef(null);
   const statsRef = useRef(null);
 
-  const specializedCountries = [
-    'Hungary', 'Germany', 'France', 'Spain', 'Belgium', 'Austria', 
-    'Netherlands', 'Sweden', 'Denmark', 'Finland', 'Portugal', 
-    'Czech Republic', 'Greece', 'Ireland', 'Switzerland', 'Norway', 
-    'Luxembourg', 'Slovakia', 'Slovenia', 'Croatia'
-  ];
 
   const filteredCountries = specializedCountries.filter((c) =>
     c.toLowerCase().includes(countryFilter.toLowerCase())
@@ -70,6 +183,8 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
   }, [showSelector]);
 
   // Intersection Observer for scroll animations and progress counting
+  const stats = getStatsData(lang);
+
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -105,6 +220,8 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
       heroTitle1: "Shine Globally With Asir Visa:",
       heroTitle2: "Your Pathway to Study in Europe",
       heroDesc: "Specialized admission routes, document processing metrics, and visa logistics for Italy, Poland, and leading European university networks.",
+      applyNowBtn: "Apply Now",
+      btnTrack: "Track",
       dashboardBtn: "➔ Open Your Active Assessment Dashboard",
       sectionTitle: "Select Your European Route",
       italyRoute: "Universitaly Route",
@@ -133,6 +250,11 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
       step3Desc: "Visa preparation",
       step4: "Approval",
       step4Desc: "Begin your studies",
+      forgotId: "Forgot my ID?",
+      forgotIdPrompt: "Please enter your email to retrieve your File ID:",
+      emailPlaceholder: "Enter your email address",
+      trackPlaceholder: "Enter File ID or Key Code",
+      trackHelp: "Paste your student tracking ID to check your file status instantly.",
       faqTitle: "Frequently Asked Questions",
       faq1Q: "What documents do I need to apply?",
       faq1A: "You'll need a passport, academic transcripts, language proficiency proof (IELTS/TOEFL), and a bank statement. Poland also requires NAWA certification for academic recognition.",
@@ -150,6 +272,8 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
       heroTitle1: "تألق عالميًا مع أسير فيزا:",
       heroTitle2: "طريقك للدراسة في أوروبا",
       heroDesc: "مسارات قبول متخصصة، مقاييس معالجة المستندات، ولوجستيات التأشيرات لإيطاليا وبولندا وشبكات الجامعات الأوروبية الرائدة.",
+      applyNowBtn: "قدِّم الآن",
+      btnTrack: "تتبع",
       dashboardBtn: "➔ افتح لوحة تقييم ملفك النشطة",
       sectionTitle: "اختر وجهتك الأوروبية",
       italyRoute: "مسار Universitaly",
@@ -178,6 +302,11 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
       step3Desc: "تحضير التأشيرة",
       step4: "الموافقة",
       step4Desc: "ابدأ دراستك",
+      forgotId: "هل نسيت رمز الملف؟",
+      forgotIdPrompt: "الرجاء إدخال بريدك الإلكتروني لاسترداد رمز الملف الخاص بك:",
+      emailPlaceholder: "أدخل عنوان بريدك الإلكتروني",
+      trackPlaceholder: "أدخل رقم الملف أو رمز الدخول",
+      trackHelp: "ألصق رمز تتبع الطالب للتحقق من حالة الملف فورًا.",
       faqTitle: "أسئلة شائعة",
       faq1Q: "ما المستندات المطلوبة للتقديم؟",
       faq1A: "ستحتاج جواز سفر وشهادة أكاديمية وإثبات كفاءة لغة (IELTS/TOEFL) وكشف حسابي بنكي. بولندا تتطلب شهادة NAWA.",
@@ -195,112 +324,43 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
   const t = translations[lang] || translations['en'];
   const isRtl = lang === 'ar';
 
-  // Statistics data
-  const stats = [
-    { value: 340, suffix: '+', label: lang === 'ar' ? 'طالب تم قبوله' : 'Students Placed', percentage: 100 },
-    { value: 98, suffix: '%', label: lang === 'ar' ? 'نسبة قبول التأشيرة' : 'Visa Approval Rate', percentage: 98 },
-    { value: 15, suffix: '+', label: lang === 'ar' ? 'جامعة شريكة' : 'Partner Universities', percentage: 95 },
-    { value: 10, suffix: '', label: lang === 'ar' ?  'سنوات خبرة' : 'Years of Experience', percentage: 95 },
-  ];
+  const handleHeroTrack = async (e) => {
+    e.preventDefault();
+    if (!heroTrackId.trim()) return;
+    await onTrack(heroTrackId.trim());
+  };
 
-  const testimonials = [
-    {
-      name: 'Amira K.',
-      story: 'Got accepted to Sapienza in 6 weeks. The process was seamless!',
-      country: 'Italy',
-      icon: (
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M8 17l4-2 4 2" />
-            <path d="M9 7v5" />
-            <path d="M15 7v5" />
-          </svg>
-        </div>
-      ),
-    },
-    {
-      name: 'Hassan M.',
-      story: 'Secured NAWA certification for Poland. Best decision ever!',
-      country: 'Poland',
-      icon: (
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        </div>
-      ),
-    },
-    {
-      name: 'Zainab L.',
-      story: 'Visa approved with scholarship offer. Thank you Asir Visa!',
-      country: 'Germany',
-      icon: (
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 16.5l7-7 7 7" />
-            <path d="M12 3v10.5" />
-            <path d="M7.5 21h9" />
-          </svg>
-        </div>
-      ),
-    },
-  ];
+  const handleForgotPassword = async () => {
+    let emailToUse = heroTrackId.trim();
+    if (!emailToUse.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      // If current input is not an email, open modal to ask for email
+      setShowForgotIdModal(true);
+      return;
+    }
 
-  const processSteps = [
-    {
-      step: '1',
-      title: t.step1,
-      desc: t.step1Desc,
-      icon: (
-        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="7" y="4" width="10" height="16" rx="2" />
-            <path d="M9 4V2h6v2" />
-            <path d="M9 10h6" />
-          </svg>
-        </div>
-      ),
-    },
-    {
-      step: '2',
-      title: t.step2,
-      desc: t.step2Desc,
-      icon: (
-        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-      ),
-    },
-    {
-      step: '3',
-      title: t.step3,
-      desc: t.step3Desc,
-      icon: (
-        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 4.21a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </div>
-      ),
-    },
-    {
-      step: '4',
-      title: t.step4,
-      desc: t.step4Desc,
-      icon: (
-        <div className="w-12 h-12 mx-auto rounded-full bg-gradient-to-br from-red-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-red-500/20 mb-3">
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 15l5-5 5 5" />
-            <path d="M12 3v12" />
-          </svg>
-        </div>
-      ),
-    },
-  ];
+    // If it looks like an email, use it directly
+    await retrieveAndEmailId(emailToUse);
+  };
+
+  const retrieveAndEmailId = async (email) => {
+    const { data, error } = await supabase
+      .from('student_profiles')
+      .select('file_tracking_id')
+        .eq('email', email.trim().toLowerCase())
+        .maybeSingle();
+
+      if (error) {
+        alert(lang === 'ar' ? "خطأ في الاتصال بالنظام." : "System connection error.");
+        return;
+      }
+
+      if (!data) {
+        alert(lang === 'ar' ? "لم يتم العثور على بريد إلكتروني مسجل." : "No registered email found.");
+      } else {
+        alert(`${lang === 'ar' ? "تم استرداد رمز الملف الخاص بك: " : "Your File ID has been retrieved: "}${data.file_tracking_id}`);
+        setShowForgotIdModal(false);
+      }
+  };
 
   return (
     <div 
@@ -330,6 +390,36 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
         
         {/* Hero Section */}
         <div className="text-center max-w-5xl mx-auto px-4">
+          <div className="flex justify-center mb-6">
+            <div className="w-full max-w-[720px] flex flex-col gap-3 sm:flex-row items-center">
+              <form onSubmit={handleHeroTrack} className="flex-1 w-full flex gap-3">
+                <input
+                  type="text"
+                  value={heroTrackId}
+                  onChange={(e) => setHeroTrackId(e.target.value)}
+                  placeholder={t.trackPlaceholder}
+                  className={`flex-1 rounded-[28px] border px-5 py-3 text-sm sm:text-base outline-none transition-colors ${
+                    isDarkMode
+                      ? 'bg-slate-950/80 border-slate-800 text-white placeholder-slate-500'
+                      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-500'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  className="w-auto rounded-[28px] bg-gradient-to-r from-red-500 to-rose-500 px-6 py-3 text-sm sm:text-base font-semibold text-white shadow-2xl shadow-red-500/20 transition hover:brightness-105"
+                >
+                  {t.btnTrack}
+                </button>
+              </form>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-2 mt-4 mb-12">
+            <p className={`text-center text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              {t.trackHelp}
+            </p>
+            <button onClick={handleForgotPassword} className="text-xs font-bold text-red-500 hover:underline cursor-pointer">{t.forgotId}</button>
+          </div>
+
           <span className={`inline-block px-4 py-1.5 rounded-full uppercase tracking-widest text-xs font-bold border mb-6 backdrop-blur-md transition-all duration-300 hover:scale-105 ${
             isDarkMode 
               ? 'bg-gradient-to-r from-white/10 via-red-500/15 to-white/10 text-red-100 border-red-400/30 shadow-lg shadow-red-500/10' 
@@ -419,7 +509,18 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
                 <span className="text-[10px] uppercase font-bold tracking-widest text-red-500">{t.italyRoute}</span>
                 <h3 className={`text-xl font-bold mt-1 group-hover:text-red-500 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.italyTitle}</h3>
                 <p className={`text-xs mt-1.5 leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{t.italyDesc}</p>
-                <div className={`mt-4 text-xs font-bold inline-flex items-center gap-1 group-hover:underline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.exploreBtn}</div>
+                <div className="mt-4 flex flex-col gap-3">
+                  <div className={`text-xs font-bold inline-flex items-center gap-1 group-hover:underline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.exploreBtn}</div>
+                  <button
+                    type="button"
+                    onClick={() => onSelectRoute('Italy')}
+                    className={`w-full rounded-2xl px-3 py-2 text-xs font-semibold transition-all duration-300 border backdrop-blur-sm ${
+                      isDarkMode ? 'bg-white/10 border-white/15 text-white hover:bg-white/15' : 'bg-white/70 border-white/60 text-slate-900 hover:bg-white'
+                    }`}
+                  >
+                    {t.applyNowBtn} Italy
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -467,7 +568,18 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
                 <span className="text-[10px] uppercase font-bold tracking-widest text-red-500">{t.polandRoute}</span>
                 <h3 className={`text-xl font-bold mt-1 group-hover:text-red-500 transition-colors duration-300 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.polandTitle}</h3>
                 <p className={`text-xs mt-1.5 leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{t.polandDesc}</p>
-                <div className={`mt-4 text-xs font-bold inline-flex items-center gap-1 group-hover:underline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.exploreBtn}</div>
+                <div className="mt-4 flex flex-col gap-3">
+                  <div className={`text-xs font-bold inline-flex items-center gap-1 group-hover:underline ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.exploreBtn}</div>
+                  <button
+                    type="button"
+                    onClick={() => onSelectRoute('Poland')}
+                    className={`w-full rounded-2xl px-3 py-2 text-xs font-semibold transition-all duration-300 border backdrop-blur-sm ${
+                      isDarkMode ? 'bg-white/10 border-white/15 text-white hover:bg-white/15' : 'bg-white/70 border-white/60 text-slate-900 hover:bg-white'
+                    }`}
+                  >
+                    {t.applyNowBtn} Poland
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -519,7 +631,7 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
             <div className="w-16 h-1 bg-gradient-to-r from-red-500 to-rose-400 mx-auto mt-3 rounded-full" />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-w-5xl mx-auto px-2">
-            {['🇮🇹 Sapienza', '🇵🇱 Warsaw', '🇮🇹 Politecnico', '🇵🇱 AGH', '🇩🇪 TU Berlin', '🇫🇷 Sorbonne', '🇪🇸 UNED', '🇳🇱 Amsterdam'].map((uni, idx) => (
+            {getFeaturedUnis().map((uni, idx) => (
               <div key={idx} className={`p-4 rounded-xl text-center border backdrop-blur-md transition-all duration-300 hover:scale-105 hover:-translate-y-1 ${
                 isDarkMode ? 'bg-slate-900/40 border-slate-800/60 text-slate-300' : 'bg-white/50 border-slate-200 text-slate-600'
               }`}>
@@ -537,7 +649,7 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
             <div className="w-16 h-1 bg-gradient-to-r from-red-500 to-rose-400 mx-auto mt-3 rounded-full" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {testimonials.map((testimonial, idx) => (
+            {getTestimonials().map((testimonial, idx) => (
               <div key={idx} className={`p-6 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:scale-105 group ${
                 isDarkMode ? 'bg-slate-900/50 border-slate-800/60 hover:bg-slate-900/70' : 'bg-white/50 border-slate-200 hover:bg-white/70'
               }`}>
@@ -561,7 +673,7 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
             <div className="w-16 h-1 bg-gradient-to-r from-red-500 to-rose-400 mx-auto mt-3 rounded-full" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-            {processSteps.map((item, idx) => (
+            {getProcessSteps(t).map((item, idx) => (
               <div key={idx} className="relative">
                 <div className={`p-6 rounded-2xl text-center border backdrop-blur-md transition-all duration-300 hover:scale-105 ${
                   isDarkMode ? 'bg-slate-900/50 border-red-500/20' : 'bg-white/50 border-red-200/30'
@@ -761,6 +873,29 @@ export default function LandingPage({ onSelectRoute, activeUser, onViewDashboard
             >
               {t.modalBack}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot ID Modal */}
+      {showForgotIdModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xl transition-all duration-300 animate-in fade-in" onClick={handleBackdropClick}>
+          <div className={`relative w-full max-w-md border p-8 rounded-3xl shadow-2xl transition-all ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{t.forgotId}</h3>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{t.forgotIdPrompt}</p>
+            <input
+              type="email"
+              value={forgotIdEmail}
+              onChange={(e) => setForgotIdEmail(e.target.value)}
+              placeholder={t.emailPlaceholder}
+              className={`w-full px-4 py-3 rounded-xl border mb-6 outline-none text-sm ${
+                isDarkMode ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900'
+              }`}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowForgotIdModal(false)} className={`flex-1 py-3 rounded-xl text-sm font-bold ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>{t.modalBack}</button>
+              <button onClick={() => retrieveAndEmailId(forgotIdEmail)} className="flex-1 py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white font-bold rounded-xl text-sm">{t.btnTrack}</button>
+            </div>
           </div>
         </div>
       )}
