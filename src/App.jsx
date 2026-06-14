@@ -7,6 +7,7 @@ import FormulaChecklist from './components/FormulaChecklist';
 import Paywall from './components/Paywall';
 import AdminDashboard from './components/AdminDashboard';
 import Services from './components/services.jsx';
+import DocumentUploader from './components/DocumentUploader'; // Import the new DocumentUploader component
 import { AppProvider, useApp } from './context/AppContext.jsx'; // 👈 FIX: Make sure the AppProvider wrapper is imported here
 import { useStudent } from './context/StudentContext.jsx';
 
@@ -59,6 +60,28 @@ function MainAppContent() {
   };
 
   const t = layoutText[lang];
+
+  // handleLogout function to clear global state and redirect
+  const handleLogout = () => {
+    updateProfile({
+      isLoggedIn: false,
+      user: null,
+      selectedDestination: null,
+      file_tracking_id: null,
+      pre_evaluation_paid: false,
+      // Reset other relevant studentProfile fields if any
+      full_name: null,
+      email: null,
+      phone: null,
+      chosen_destination: null,
+      hasPaid: false,
+      ccp_receipt_url: null,
+      acceptance_rate: null,
+      visa_rate: null,
+      admin_notes: null, // Reset admin notes
+    });
+    setViewMode('landing');
+  };
 
   const downloadIdTokenFile = (profile) => {
     if (!profile) return;
@@ -131,11 +154,11 @@ function MainAppContent() {
       });
 
       if (!data.ccp_receipt_url) {
-        setViewMode('checklist');
+        setViewMode('checklist'); // If no receipt, go to checklist (payment)
       } else if (data.pre_evaluation_paid) {
-        setViewMode('checklist');
+        setViewMode('upload-docs'); // ⚡ FIX: Route directly to uploader if paid
       } else {
-        setViewMode('waiting-approval');
+        setViewMode('waiting-approval'); // Still waiting for admin to verify receipt
       }
     } catch (err) {
       console.error("Critical tracking failure:", err);
@@ -294,6 +317,16 @@ function MainAppContent() {
               </button>
             </div>
 
+            {/* Logout button - displays only when logged in */}
+            {studentProfile.isLoggedIn && (
+              <button 
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-lg bg-red-500/10 text-red-500 text-xs font-bold border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300"
+              >
+                {lang === 'ar' ? 'خروج' : 'Logout'}
+              </button>
+            )}
+
             {viewMode !== 'landing' && (
               <button 
                 onClick={() => setViewMode('landing')} 
@@ -377,6 +410,16 @@ function MainAppContent() {
           onTrack={handleTrackFromServices}
           isDarkMode={isDarkMode}
           lang={lang}
+        />
+      )}
+
+      {/* Conditionally render DocumentUploader */}
+      {viewMode === 'upload-docs' && (
+        <DocumentUploader 
+          studentProfile={studentProfile} 
+          lang={lang} 
+          isDarkMode={isDarkMode} 
+          onLogout={handleLogout} 
         />
       )}
 

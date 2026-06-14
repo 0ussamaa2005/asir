@@ -8,6 +8,8 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
   const [loading, setLoading] = useState(true);
   const [filterRoute, setFilterRoute] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewingDocs, setViewingDocs] = useState(null); // Stores tracking ID of student being viewed
+  const [studentDocs, setStudentDocs] = useState([]);
   const [toast, setToast] = useState(null);
   const isRtl = lang === 'ar';
 
@@ -35,6 +37,12 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
       statsVerified: "Verified",
       toastUpdated: "Payment status synchronized successfully!",
       toastExport: "Excel ledger exported successfully!",
+      notesLabel: "Admin Notes",
+      addNotes: "+ Add Notes",
+      editNotes: "📝 Edit Notes",
+      viewDocs: "📁 View Files",
+      notesPrompt: "Enter custom instructions/notes for this student:",
+      noDocsFound: "No documents submitted yet."
     },
     ar: {
       title: "مكتب أسير فيزا المركزي",
@@ -59,6 +67,12 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
       statsVerified: "تم التحقق",
       toastUpdated: "تم تحديث حالة الدفع بنجاح!",
       toastExport: "تم تصدير السجل بنجاح!",
+      notesLabel: "ملاحظات الأدمن",
+      addNotes: "+ إضافة ملاحظات",
+      editNotes: "📝 تعديل الملاحظات",
+      viewDocs: "📁 عرض الملفات",
+      notesPrompt: "أدخل التعليمات/الملاحظات المخصصة لهذا الطالب:",
+      noDocsFound: "لم يتم تقديم أي مستندات بعد."
     }
   };
 
@@ -86,6 +100,29 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
       // Refresh local state to reflect update
       setStudents(prev => prev.map(s => s.id === id ? { ...s, pre_evaluation_paid: !currentStatus } : s));
     }
+  };
+
+  const handleUpdateNotes = async (id, notes) => {
+    const { error } = await supabase
+      .from('student_profiles')
+      .update({ admin_notes: notes })
+      .eq('id', id);
+    if (!error) {
+      setToast({ message: t.toastUpdated });
+      setTimeout(() => setToast(null), 3000);
+      setStudents(prev => prev.map(s => s.id === id ? { ...s, admin_notes: notes } : s));
+    }
+  };
+
+  const handleViewDocs = async (trackingId) => {
+    setViewingDocs(trackingId);
+    setStudentDocs([]);
+    const { data, error } = await supabase
+      .from('student_documents')
+      .select('*')
+      .eq('file_tracking_id', trackingId)
+      .order('created_at', { ascending: false });
+    if (!error && data) setStudentDocs(data);
   };
 
   const exportToExcelLedger = () => {
@@ -204,6 +241,7 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
                   <th className="p-4">{t.target}</th>
                   <th className="p-4 text-center">{t.metrics}</th>
                   <th className="p-4 text-center">{t.receipt}</th>
+                  <th className="p-4">{t.notesLabel}</th>
                   <th className="p-4 text-right">{t.action}</th>
                 </tr>
               </thead>
@@ -240,6 +278,25 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
                         <span className={`font-mono text-[11px] ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>{t.noSlip}</span>
                       )}
                     </td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1">
+                        <button 
+                          onClick={() => {
+                            const newNotes = prompt(t.notesPrompt, student.admin_notes || "");
+                            if (newNotes !== null) handleUpdateNotes(student.id, newNotes);
+                          }}
+                          className={`text-[10px] font-bold uppercase hover:underline text-left ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}
+                        >
+                          {student.admin_notes ? t.editNotes : t.addNotes}
+                        </button>
+                        <button 
+                          onClick={() => handleViewDocs(student.file_tracking_id)}
+                          className={`text-[10px] font-bold uppercase hover:underline text-left ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}
+                        >
+                          {t.viewDocs}
+                        </button>
+                      </div>
+                    </td>
                     <td className="p-4 text-right">
                       <button onClick={() => handleTogglePaymentStatus(student.id, student.pre_evaluation_paid)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 ${student.pre_evaluation_paid ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20'}`}>
                         {student.pre_evaluation_paid ? t.verified : t.pending}
@@ -252,6 +309,40 @@ export default function AdminDashboard({ lang = 'en', isDarkMode = false }) {
           </div>
         )}
       </div>
+
+      {/* Document Viewer Modal */}
+      {viewingDocs && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" onClick={() => setViewingDocs(null)}>
+          <div className={`w-full max-w-lg p-6 rounded-3xl border shadow-2xl ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold">{t.viewDocs}</h3>
+              <button onClick={() => setViewingDocs(null)} className="text-xs font-bold opacity-50 hover:opacity-100 uppercase">✕</button>
+            </div>
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {studentDocs.length === 0 ? (
+                <p className="text-sm text-center py-10 opacity-50">{t.noDocsFound}</p>
+              ) : (
+                studentDocs.map(doc => (
+                  <div key={doc.id} className={`p-4 rounded-xl border flex items-center justify-between ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                    <div>
+                      <p className="text-sm font-bold">{doc.document_name}</p>
+                      <p className="text-[10px] opacity-50">{new Date(doc.created_at).toLocaleString()}</p>
+                    </div>
+                    <a 
+                      href={doc.file_url} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+                    >
+                      View ↗
+                    </a>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
